@@ -25,21 +25,19 @@ data_dir = 'data123'
 #va a ridimensionare tutte le immagini del dataset
 data = tf.keras.utils.image_dataset_from_directory('data123', image_size = (400,400))
 
-#rendo il dataset un iteratore numpy in modo da poter 'viaggiare' nel dataset
-#il batch che è composto da due parti una prima rappresenta le immagine, nel nostro caso sono 32 poichè batch_size=32 per default
-# #la seconda la label, quindi un array di 32 numeri dove ogni numero ci dice l'etichetta dell'immagine corrispondente
-
 #PREPROCESSING DATA
 #fase in cui modifico le immagini in range che vanno da 0 a 1 ainvece che da 0 a 255 
 #ciò permette al mio modello di addestrarsi più velocemente e produrre risultati migliori
 data = data.map(lambda x,y: (x/255.0,y)) #x rappresenta le immagini, y le labels
-print('batch1')
+#rendo il dataset un iteratore numpy in modo da poter 'viaggiare' nel dataset
+#il batch che è composto da due parti una prima rappresenta le immagine, nel nostro caso sono 32 poichè batch_size=32 per default
+# #la seconda la label, quindi un array di 32 numeri dove ogni numero ci dice l'etichetta dell'immagine corrispondente
 scaled_iterator = data.as_numpy_iterator()
 batch = scaled_iterator.next()
 print(batch[0])
 print(batch[0].max())
 print(batch[0].min()) 
-print((batch[0].shape))
+
 #DIVIDO IL MIO SET
 train_size = int(len(data)*.7)
 val_size = int(len(data)*.3)
@@ -67,26 +65,20 @@ print(model.summary())
 #TRAIN
 logdir = 'logs'
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logdir)
-hist = model.fit(train, epochs=10, validation_data=val, callbacks = [tensorboard_callback])
-print('ACCURACY = ', hist.history['accuracy'])
+history = model.fit(train, epochs=10, validation_data=val, callbacks = [tensorboard_callback])
 
 #EVALUATE PERFORMANCE 
-# pre = Precision()
-# re = Recall()
-# acc = BinaryAccuracy()
-
-# for batch in test.as_numpy_iterator():
-#     x,y = batch
-#     yhat = model.predict(x)
-#     pre.update_state(y, yhat)
-#     re.update_state(y, yhat)
-#     acc.update_state(y, yhat)
-# print(f'Precision:{pre.result().numpy()}, Recall:{re.result().numpy()}, Accuracy:{acc.result().numpy()}')
+# plt.plot(history.history['accuracy'])
+# plt.plot(history.history['val_accuracy'])
+# plt.title('Model accuracy')
+# plt.ylabel('Accuracy')
+# plt.xlabel('Epoch')
+# plt.legend(['Train', 'Test'], loc='upper left')
+# plt.show()
 
 #TEST real time
 cap = cv2.VideoCapture(0)
 detector = HandDetector(maxHands=1)
-#classifier = Classifier("Model/keras_model.h5", "Model/labels.txt")
 offset=20
 imgSize = 400
 folder = 'data123/3'
@@ -99,7 +91,6 @@ while True:
     if hands:
         hand = hands[0]
         x, y, w, h = hand['bbox']
-
         #devo fare in modo che le immagini crop siano tutte della stessa dimensione
         #e fare in modo che la mano venga inserita al centro della nostra immagine
         imgWhite = np.ones((imgSize, imgSize, 3), np.uint8)*255
@@ -129,10 +120,10 @@ while True:
         resize = tf.image.resize(imgWhite, (400,400))
         yhat = model.predict_classes(np.expand_dims(resize/255, 0))
         print(f'il valore predetto è {yhat}')
-    #cv2.putText(imgOutput, yhat, (x, y-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
     cv2.imshow("image", imgOutput)
+    #cv2.putText(imgOutput, str(yhat[0]), (x, y-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
     key = cv2.waitKey(1)
-#     # if key == ord("s"):
-#     #     counter += 1
-#     #     cv2.imwrite(f'{folder}/Image_{time.time()}.jpg', imgWhite)
-#     #     print(counter)
+    # if key == ord("s"):
+    #     counter += 1
+    #     cv2.imwrite(f'{folder}/Image_{time.time()}.jpg', imgWhite)
+    #     print(counter)
