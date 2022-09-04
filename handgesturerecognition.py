@@ -57,7 +57,7 @@ model.add(Conv2D(16, (3,3), 1, activation='relu'))
 model.add(MaxPooling2D())
 model.add(Flatten()) #appiattisco i dati, ovvero converto tutto in un array ad una dimensione 
 model.add(Dense(256, activation='relu'))#256 sono i neuroni presenti in questo livello
-model.add(Dense(4, activation='softmax'))#softmax viene utilizzato per le classificazioni multi-class
+model.add(Dense(10, activation='softmax'))#softmax viene utilizzato per le classificazioni multi-class
 #utilizzo come funzione di loss una classificazione binaria, e voglio tener d'occhio l'accuracy della nostra rete
 model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
 print(model.summary())
@@ -65,7 +65,7 @@ print(model.summary())
 #TRAIN
 logdir = 'logs'
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logdir)
-history = model.fit(train, epochs=10, validation_data=val, callbacks = [tensorboard_callback])
+history = model.fit(train, epochs=10, validation_data=val, callbacks = [tensorboard_callback], verbose=2)
 
 #EVALUATE PERFORMANCE 
 # plt.plot(history.history['accuracy'])
@@ -78,17 +78,77 @@ history = model.fit(train, epochs=10, validation_data=val, callbacks = [tensorbo
 
 #TEST real time
 cap = cv2.VideoCapture(0)
-detector = HandDetector(maxHands=1)
+detector = HandDetector(maxHands=2)
 offset=20
 imgSize = 400
-folder = 'data123/3'
+folder = 'data123'
 counter = 0
 while True:
     success, img = cap.read()
     imgOutput = img.copy()
+    cv2.imshow("imgOutput", imgOutput)
     hands, img = detector.findHands(img)
+    if len(hands)>1:
+        if hands:
+            hand1 = hands[0]
+            hand2 = hands[1]
+            x1, y1, w1, h1 = hand1['bbox']
+            x2, y2, w2, h2 = hand2['bbox']
+            #devo fare in modo che le immagini crop siano tutte della stessa dimensione
+            #e fare in modo che la mano venga inserita al centro della nostra immagine
+            imgWhite1 = np.ones((imgSize, imgSize, 3), np.uint8)*255
+            imgWhite2 = np.ones((imgSize, imgSize, 3), np.uint8)*255
+            imgCrop1 = img[y1-offset:y1+h1+offset, x1-offset:x1+w1+offset]
+            imgCrop2 = img[y2-offset:y2+h2+offset, x2-offset:x2+w2+offset]
 
-    if hands:
+            aspectRatio1 = h1/w1
+            aspectRatio2 = h2/w2
+            if aspectRatio1 > 1:
+                k1 = imgSize/h1
+                #qualsiasi valore con la virgola viene approssimato all'intero superiore
+                wCal1 = math.ceil(k1*w1)
+                imgResize1 = cv2.resize(imgCrop1, (wCal1, imgSize))
+                #devo trovare lo spazio per poter spostare l'immagine al centro
+                wGap1 = math.ceil((imgSize-wCal1)/2)
+                imgWhite1[ : , wGap1:wCal1+wGap1] = imgResize1
+
+            else:
+                k1 = imgSize/h1
+                hCal1 = math.ceil(k1*h1)
+                imgResize1 = cv2.resize(imgCrop1, (imgSize, hCal1))
+                hGap1 = math.ceil((imgSize-hCal1)/2)
+                imgWhite1[hGap1:hCal1+hGap1, : ] = imgResize1
+
+            #cv2.imshow("ImageCrop1", imgCrop1)
+
+            if aspectRatio2 > 1:
+                k2 = imgSize/h2
+                #qualsiasi valore con la virgola viene approssimato all'intero superiore
+                wCal2 = math.ceil(k2*w2)
+                imgResize2 = cv2.resize(imgCrop2, (wCal2, imgSize))
+                #devo trovare lo spazio per poter spostare l'immagine al centro
+                wGap2 = math.ceil((imgSize-wCal2)/2)
+                imgWhite2[ : , wGap2:wCal2+wGap2] = imgResize2
+
+            else:
+                k2 = imgSize/h2
+                hCal2 = math.ceil(k2*h2)
+                imgResize2 = cv2.resize(imgCrop2, (imgSize, hCal2))
+                hGap2 = math.ceil((imgSize-hCal2)/2)
+                imgWhite2[hGap2:hCal2+hGap2, : ] = imgResize2
+
+            #cv2.imshow("ImageCrop2", imgCrop2)
+        
+        
+        #testo la mia immagine finale
+            resize1 = tf.image.resize(imgWhite1, (400,400))
+            resize2 = tf.image.resize(imgWhite2, (400,400))
+            #onserisco la mia immagine in un array con dimensione essatta in modo da passarla al modello
+            #yhat1 = model.predict_classes(np.expand_dims(resize1/255, 0), batch_size=1)
+            #yhat2 = model.predict_classes(np.expand_dims(resize2/255, 0), batch_size=1)
+            #cv2.putText(imgOutput, str(yhat1[0]), (x1, y1-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
+            #cv2.putText(imgOutput, str(yhat2[0]), (x2, y2-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 255 ,255), 2)
+    elif hands:
         hand = hands[0]
         x, y, w, h = hand['bbox']
         #devo fare in modo che le immagini crop siano tutte della stessa dimensione
@@ -113,17 +173,21 @@ while True:
             hGap = math.ceil((imgSize-hCal)/2)
             imgWhite[hGap:hCal+hGap, : ] = imgResize
 
-        cv2.imshow("ImageCrop", imgCrop)
+        #cv2.imshow("ImageCrop", imgCrop)
         cv2.imshow("ImageWhite", imgWhite)
-    
-    #testo la mia immagine finale
+        
+        #testo la mia immagine finale
         resize = tf.image.resize(imgWhite, (400,400))
-        yhat = model.predict_classes(np.expand_dims(resize/255, 0))
-        print(f'il valore predetto è {yhat}')
-    cv2.imshow("image", imgOutput)
-    #cv2.putText(imgOutput, str(yhat[0]), (x, y-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
+        #incapsulo la mia immagine in un array
+        #yhat = model.predict_classes(np.expand_dims(resize/255, 0), batch_size=1)
+        #cv2.putText(imgOutput, str(yhat[0]), (x, y-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
+    cv2.imshow("imgOutput", imgOutput)
+            
     key = cv2.waitKey(1)
-    # if key == ord("s"):
-    #     counter += 1
-    #     cv2.imwrite(f'{folder}/Image_{time.time()}.jpg', imgWhite)
-    #     print(counter)
+    if key == ord('e'):
+        cap.release()
+        cv2.destroyAllWindows()
+    if key == ord("s"):
+        counter += 1
+        cv2.imwrite(f'{folder}/Image_{time.time()}.jpg', imgWhite)
+        print(counter)
