@@ -66,9 +66,7 @@ model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentro
 print(model.summary())
 
 #TRAIN
-logdir = 'logs'
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logdir)
-history = model.fit(train, epochs=10, validation_data=val, callbacks = [tensorboard_callback], verbose=2)
+history = model.fit(train, epochs=10, validation_data=val)
 
 #EVALUATE PERFORMANCE 
 plt.plot(history.history['accuracy'])
