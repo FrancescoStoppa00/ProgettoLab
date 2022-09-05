@@ -1,3 +1,4 @@
+from cgi import test
 import tensorflow as tf
 import os
 import cv2
@@ -34,17 +35,19 @@ data = data.map(lambda x,y: (x/255.0,y)) #x rappresenta le immagini, y le labels
 # #la seconda la label, quindi un array di 32 numeri dove ogni numero ci dice l'etichetta dell'immagine corrispondente
 scaled_iterator = data.as_numpy_iterator()
 batch = scaled_iterator.next()
-print(batch[0])
-print(batch[0].max())
-print(batch[0].min()) 
 
 #DIVIDO IL MIO SET
 train_size = int(len(data)*.7)
-val_size = int(len(data)*.3)
+val_size = int(len(data)*.2)
+test_size = int(len(data)*.1)
+print(f'ho {train_size} batch per il test set')
+print(f'ho {val_size} batch per il validation set')
+#print(f'ho {test_size} batch per il test set')
 
 #dico quanti batch sono necessari per il mio training, e dopo quanti batch dovrò utilizzzare gli altri data
 train = data.take(train_size)
 val = data.skip(train_size).take(val_size) 
+#test = data.skip(train_size+val_size).take(test_size)
 
 #BUILD DEEP LEARNING MODEL
 model = Sequential()
@@ -68,13 +71,13 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = logdir)
 history = model.fit(train, epochs=10, validation_data=val, callbacks = [tensorboard_callback], verbose=2)
 
 #EVALUATE PERFORMANCE 
-# plt.plot(history.history['accuracy'])
-# plt.plot(history.history['val_accuracy'])
-# plt.title('Model accuracy')
-# plt.ylabel('Accuracy')
-# plt.xlabel('Epoch')
-# plt.legend(['Train', 'Test'], loc='upper left')
-# plt.show()
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
 
 #TEST real time
 cap = cv2.VideoCapture(0)
@@ -89,7 +92,6 @@ while True:
     cv2.imshow("imgOutput", imgOutput)
     hands, img = detector.findHands(img)
     if len(hands)>1:
-        if hands:
             hand1 = hands[0]
             hand2 = hands[1]
             x1, y1, w1, h1 = hand1['bbox']
@@ -138,16 +140,16 @@ while True:
                 imgWhite2[hGap2:hCal2+hGap2, : ] = imgResize2
 
             #cv2.imshow("ImageCrop2", imgCrop2)
-        
-        
+            
+            
         #testo la mia immagine finale
             resize1 = tf.image.resize(imgWhite1, (400,400))
             resize2 = tf.image.resize(imgWhite2, (400,400))
-            #onserisco la mia immagine in un array con dimensione essatta in modo da passarla al modello
-            #yhat1 = model.predict_classes(np.expand_dims(resize1/255, 0), batch_size=1)
-            #yhat2 = model.predict_classes(np.expand_dims(resize2/255, 0), batch_size=1)
-            #cv2.putText(imgOutput, str(yhat1[0]), (x1, y1-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
-            #cv2.putText(imgOutput, str(yhat2[0]), (x2, y2-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 255 ,255), 2)
+                #inserisco la mia immagine in un array con dimensione essatta in modo da passarla al modello
+            yhat1 = model.predict_classes(np.expand_dims(resize1/255, 0), batch_size=1)
+            yhat2 = model.predict_classes(np.expand_dims(resize2/255, 0), batch_size=1)
+            cv2.putText(imgOutput, str(yhat1[0]), (x1, y1-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
+            cv2.putText(imgOutput, str(yhat2[0]), (x2, y2-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 255 ,255), 2)
     elif hands:
         hand = hands[0]
         x, y, w, h = hand['bbox']
@@ -179,8 +181,8 @@ while True:
         #testo la mia immagine finale
         resize = tf.image.resize(imgWhite, (400,400))
         #incapsulo la mia immagine in un array
-        #yhat = model.predict_classes(np.expand_dims(resize/255, 0), batch_size=1)
-        #cv2.putText(imgOutput, str(yhat[0]), (x, y-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
+        yhat = model.predict_classes(np.expand_dims(resize/255, 0), batch_size=1)
+        cv2.putText(imgOutput, str(yhat[0]), (x, y-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
     cv2.imshow("imgOutput", imgOutput)
             
     key = cv2.waitKey(1)
