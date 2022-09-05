@@ -92,64 +92,64 @@ while True:
     cv2.imshow("imgOutput", imgOutput)
     hands, img = detector.findHands(img)
     if len(hands)>1:
-            hand1 = hands[0]
-            hand2 = hands[1]
-            x1, y1, w1, h1 = hand1['bbox']
-            x2, y2, w2, h2 = hand2['bbox']
-            #devo fare in modo che le immagini crop siano tutte della stessa dimensione
-            #e fare in modo che la mano venga inserita al centro della nostra immagine
-            imgWhite1 = np.ones((imgSize, imgSize, 3), np.uint8)*255
-            imgWhite2 = np.ones((imgSize, imgSize, 3), np.uint8)*255
-            imgCrop1 = img[y1-offset:y1+h1+offset, x1-offset:x1+w1+offset]
-            imgCrop2 = img[y2-offset:y2+h2+offset, x2-offset:x2+w2+offset]
+        hand1 = hands[0]
+        hand2 = hands[1]
+        x1, y1, w1, h1 = hand1['bbox']
+        x2, y2, w2, h2 = hand2['bbox']
+        #devo fare in modo che le immagini crop siano tutte della stessa dimensione
+        #e fare in modo che la mano venga inserita al centro della nostra immagine
+        imgWhite1 = np.ones((imgSize, imgSize, 3), np.uint8)*255
+        imgWhite2 = np.ones((imgSize, imgSize, 3), np.uint8)*255
+        imgCrop1 = img[y1-offset:y1+h1+offset, x1-offset:x1+w1+offset]
+        imgCrop2 = img[y2-offset:y2+h2+offset, x2-offset:x2+w2+offset]
 
-            aspectRatio1 = h1/w1
-            aspectRatio2 = h2/w2
-            if aspectRatio1 > 1:
-                k1 = imgSize/h1
-                #qualsiasi valore con la virgola viene approssimato all'intero superiore
-                wCal1 = math.ceil(k1*w1)
-                imgResize1 = cv2.resize(imgCrop1, (wCal1, imgSize))
-                #devo trovare lo spazio per poter spostare l'immagine al centro
-                wGap1 = math.ceil((imgSize-wCal1)/2)
-                imgWhite1[ : , wGap1:wCal1+wGap1] = imgResize1
+        aspectRatio1 = h1/w1
+        aspectRatio2 = h2/w2
+        if aspectRatio1 > 1:
+            k1 = imgSize/h1
+            #qualsiasi valore con la virgola viene approssimato all'intero superiore
+            wCal1 = math.ceil(k1*w1)
+            imgResize1 = cv2.resize(imgCrop1, (wCal1, imgSize))
+            #devo trovare lo spazio per poter spostare l'immagine al centro
+            wGap1 = math.ceil((imgSize-wCal1)/2)
+            imgWhite1[ : , wGap1:wCal1+wGap1] = imgResize1
 
-            else:
-                k1 = imgSize/h1
-                hCal1 = math.ceil(k1*h1)
-                imgResize1 = cv2.resize(imgCrop1, (imgSize, hCal1))
-                hGap1 = math.ceil((imgSize-hCal1)/2)
-                imgWhite1[hGap1:hCal1+hGap1, : ] = imgResize1
+        else:
+            k1 = imgSize/h1
+            hCal1 = math.ceil(k1*h1)
+            imgResize1 = cv2.resize(imgCrop1, (imgSize, hCal1))
+            hGap1 = math.ceil((imgSize-hCal1)/2)
+            imgWhite1[hGap1:hCal1+hGap1, : ] = imgResize1
 
-            #cv2.imshow("ImageCrop1", imgCrop1)
+        #cv2.imshow("ImageCrop1", imgCrop1)
 
-            if aspectRatio2 > 1:
-                k2 = imgSize/h2
-                #qualsiasi valore con la virgola viene approssimato all'intero superiore
-                wCal2 = math.ceil(k2*w2)
-                imgResize2 = cv2.resize(imgCrop2, (wCal2, imgSize))
-                #devo trovare lo spazio per poter spostare l'immagine al centro
-                wGap2 = math.ceil((imgSize-wCal2)/2)
-                imgWhite2[ : , wGap2:wCal2+wGap2] = imgResize2
+        if aspectRatio2 > 1:
+            k2 = imgSize/h2
+            #qualsiasi valore con la virgola viene approssimato all'intero superiore
+            wCal2 = math.ceil(k2*w2)
+            imgResize2 = cv2.resize(imgCrop2, (wCal2, imgSize))
+            #devo trovare lo spazio per poter spostare l'immagine al centro
+            wGap2 = math.ceil((imgSize-wCal2)/2)
+            imgWhite2[ : , wGap2:wCal2+wGap2] = imgResize2
 
-            else:
-                k2 = imgSize/h2
-                hCal2 = math.ceil(k2*h2)
-                imgResize2 = cv2.resize(imgCrop2, (imgSize, hCal2))
-                hGap2 = math.ceil((imgSize-hCal2)/2)
-                imgWhite2[hGap2:hCal2+hGap2, : ] = imgResize2
+        else:
+            k2 = imgSize/h2
+            hCal2 = math.ceil(k2*h2)
+            imgResize2 = cv2.resize(imgCrop2, (imgSize, hCal2))
+            hGap2 = math.ceil((imgSize-hCal2)/2)
+            imgWhite2[hGap2:hCal2+hGap2, : ] = imgResize2
 
-            #cv2.imshow("ImageCrop2", imgCrop2)
+        #cv2.imshow("ImageCrop2", imgCrop2)
             
             
         #testo la mia immagine finale
-            resize1 = tf.image.resize(imgWhite1, (400,400))
-            resize2 = tf.image.resize(imgWhite2, (400,400))
-                #inserisco la mia immagine in un array con dimensione essatta in modo da passarla al modello
-            yhat1 = model.predict_classes(np.expand_dims(resize1/255, 0), batch_size=1)
-            yhat2 = model.predict_classes(np.expand_dims(resize2/255, 0), batch_size=1)
-            cv2.putText(imgOutput, str(yhat1[0]), (x1, y1-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
-            cv2.putText(imgOutput, str(yhat2[0]), (x2, y2-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 255 ,255), 2)
+        resize1 = tf.image.resize(imgWhite1, (400,400))
+        resize2 = tf.image.resize(imgWhite2, (400,400))
+        #inserisco la mia immagine in un array con dimensione essatta in modo da passarla al modello
+        yhat1 = model.predict_classes(np.expand_dims(resize1/255, 0), batch_size=1)
+        yhat2 = model.predict_classes(np.expand_dims(resize2/255, 0), batch_size=1)
+        cv2.putText(imgOutput, str(yhat1[0]), (x1, y1-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
+        cv2.putText(imgOutput, str(yhat2[0]), (x2, y2-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 255 ,255), 2)
     elif hands:
         hand = hands[0]
         x, y, w, h = hand['bbox']
