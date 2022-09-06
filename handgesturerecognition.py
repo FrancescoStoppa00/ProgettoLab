@@ -1,4 +1,3 @@
-from cgi import test
 import tensorflow as tf
 import os
 import cv2
@@ -6,12 +5,13 @@ import numpy as np
 from matplotlib import pyplot as plt
 from tensorflow.python.keras.models import Sequential
 from tensorflow.python.keras.layers import Conv2D, MaxPooling2D, Dense, Flatten
-from keras.optimizers import SGD
 #Conv2D rappresenta la parte di convoluzione sulle immagini
 #maxpooling2d serve per condensare tutti i dati e riportare quelli più importanti
 import math
 from cvzone.HandTrackingModule import HandDetector
 import time
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+from sklearn.metrics import accuracy_score, classification_report
 
 #righe necessarie per evitare errori causati da grandi dataset e dal consumo di risorse
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -25,6 +25,9 @@ data_dir = 'data123'
 #crea un dataset senza utilizzare label o creare effettivamente classi
 #va a ridimensionare tutte le immagini del dataset
 data = tf.keras.utils.image_dataset_from_directory('data123', image_size = (400,400))
+labels = ['0','1','2','3','4','5','6','7','8','9','a','c','g','i','l']
+labels.sort()
+print(f'Tutte quante le label disponibile nel dataset sono {labels}')
 
 #PREPROCESSING DATA
 #fase in cui modifico le immagini in range che vanno da 0 a 1 ainvece che da 0 a 255 
@@ -42,12 +45,12 @@ val_size = int(len(data)*.2)
 test_size = int(len(data)*.1)
 print(f'ho {train_size} batch per il test set')
 print(f'ho {val_size} batch per il validation set')
-#print(f'ho {test_size} batch per il test set')
+print(f'ho {test_size} batch per il test set')
 
 #dico quanti batch sono necessari per il mio training, e dopo quanti batch dovrò utilizzzare gli altri data
 train = data.take(train_size)
 val = data.skip(train_size).take(val_size) 
-#test = data.skip(train_size+val_size).take(test_size)
+test = data.skip(train_size+val_size).take(test_size)
 
 #BUILD DEEP LEARNING MODEL
 model = Sequential()
@@ -60,9 +63,9 @@ model.add(Conv2D(16, (3,3), 1, activation='relu'))
 model.add(MaxPooling2D())
 model.add(Flatten()) #appiattisco i dati, ovvero converto tutto in un array ad una dimensione 
 model.add(Dense(256, activation='relu'))#256 sono i neuroni presenti in questo livello
-model.add(Dense(10, activation='softmax'))#softmax viene utilizzato per le classificazioni multi-class
+model.add(Dense(15, activation='softmax'))#softmax viene utilizzato per le classificazioni multi-class
 #utilizzo come funzione di loss una classificazione binaria, e voglio tener d'occhio l'accuracy della nostra rete
-model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics=['accuracy'])
+model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(), metrics='accuracy')
 print(model.summary())
 
 #TRAIN
@@ -74,15 +77,45 @@ plt.plot(history.history['val_accuracy'])
 plt.title('Model accuracy')
 plt.ylabel('Accuracy')
 plt.xlabel('Epoch')
-plt.legend(['Train', 'Test'], loc='upper left')
+plt.legend(['Train', 'Validation'], loc='upper left')
 plt.show()
 
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Validation'], loc='upper left')
+plt.show()
+
+counter_batch = 1
+for batch in test.as_numpy_iterator():
+    print(f'############BATCH{counter_batch}############')
+    X, y = batch
+    label_predict = np.argmax(model.predict(X), axis=-1)
+
+    print(f'le label corrette del batch{counter_batch} sono: {y}')
+    print(f'le label predette dalla nostra rete nel batch{counter_batch} sono {label_predict}')
+
+    acc = accuracy_score(y, label_predict)
+    print(f'Accuracy del test: {acc}')
+    report = classification_report(y, label_predict)
+    print(report)
+    #support indica il numero degli esempi di ogni classe
+    cm = confusion_matrix(y, label_predict)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp.plot()
+    plt.show()
+
+    counter_batch+=1
+
 #TEST real time
+print(f'############ TEST REAL TIME ############')
 cap = cv2.VideoCapture(0)
 detector = HandDetector(maxHands=2)
 offset=20
 imgSize = 400
-folder = 'data123'
+folder = 'data123/8'
 counter = 0
 while True:
     success, img = cap.read()
@@ -113,7 +146,7 @@ while True:
             imgWhite1[ : , wGap1:wCal1+wGap1] = imgResize1
 
         else:
-            k1 = imgSize/h1
+            k1 = imgSize/w1
             hCal1 = math.ceil(k1*h1)
             imgResize1 = cv2.resize(imgCrop1, (imgSize, hCal1))
             hGap1 = math.ceil((imgSize-hCal1)/2)
@@ -131,7 +164,7 @@ while True:
             imgWhite2[ : , wGap2:wCal2+wGap2] = imgResize2
 
         else:
-            k2 = imgSize/h2
+            k2 = imgSize/w2
             hCal2 = math.ceil(k2*h2)
             imgResize2 = cv2.resize(imgCrop2, (imgSize, hCal2))
             hGap2 = math.ceil((imgSize-hCal2)/2)
@@ -144,10 +177,13 @@ while True:
         resize1 = tf.image.resize(imgWhite1, (400,400))
         resize2 = tf.image.resize(imgWhite2, (400,400))
         #inserisco la mia immagine in un array con dimensione essatta in modo da passarla al modello
-        yhat1 = model.predict_classes(np.expand_dims(resize1/255, 0), batch_size=1)
-        yhat2 = model.predict_classes(np.expand_dims(resize2/255, 0), batch_size=1)
-        cv2.putText(imgOutput, str(yhat1[0]), (x1, y1-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
-        cv2.putText(imgOutput, str(yhat2[0]), (x2, y2-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 255 ,255), 2)
+        yhat1 = np.argmax(model.predict(np.expand_dims(resize1/255, 0)))
+        yhat2 = np.argmax(model.predict(np.expand_dims(resize2/255, 0)))
+        label1_predict = labels[yhat1]
+        label2_predict = labels[yhat2]
+        cv2.putText(imgOutput, label1_predict, (x1, y1-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 , 0), 2)
+        cv2.putText(imgOutput, label2_predict, (x2, y2-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 255 ,0), 2)
+    
     elif hands:
         hand = hands[0]
         x, y, w, h = hand['bbox']
@@ -167,7 +203,7 @@ while True:
             imgWhite[ : , wGap:wCal+wGap] = imgResize
 
         else:
-            k = imgSize/h
+            k = imgSize/w
             hCal = math.ceil(k*h)
             imgResize = cv2.resize(imgCrop, (imgSize, hCal))
             hGap = math.ceil((imgSize-hCal)/2)
@@ -179,8 +215,9 @@ while True:
         #testo la mia immagine finale
         resize = tf.image.resize(imgWhite, (400,400))
         #incapsulo la mia immagine in un array
-        yhat = model.predict_classes(np.expand_dims(resize/255, 0), batch_size=1)
-        cv2.putText(imgOutput, str(yhat[0]), (x, y-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 ,255), 2)
+        yhat = np.argmax(model.predict(np.expand_dims(resize/255, 0)))
+        label_predict = labels[yhat]
+        cv2.putText(imgOutput, label_predict, (x, y-offset), cv2.FONT_HERSHEY_COMPLEX, 2, (255, 0 , 0), 2)
     cv2.imshow("imgOutput", imgOutput)
             
     key = cv2.waitKey(1)
