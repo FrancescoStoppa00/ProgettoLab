@@ -25,7 +25,7 @@ data_dir = 'data123'
 #crea un dataset senza utilizzare label o creare effettivamente classi
 #va a ridimensionare tutte le immagini del dataset
 data = tf.keras.utils.image_dataset_from_directory('data123', image_size = (400,400))
-labels = ['0','1','2','3','4','5','6','7','8','9','a','c','g','i','l']
+labels = ['0','1','2','3','4','5','6','7','8','9','A','C','G','I','L']
 labels.sort()
 print(f'Tutte quante le label disponibile nel dataset sono {labels}')
 
