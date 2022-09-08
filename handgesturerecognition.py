@@ -12,6 +12,7 @@ from cvzone.HandTrackingModule import HandDetector
 import time
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from sklearn.metrics import accuracy_score, classification_report
+from tensorflow.python.keras.models import load_model
 
 #righe necessarie per evitare errori causati da grandi dataset e dal consumo di risorse
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -19,12 +20,12 @@ for gpu in gpus:
     tf.config.experimental.set_memory_growth(gpu, True)
 
 #creo percorso verso le mie sottocategorie
-data_dir = 'data123'
+data_dir = 'data'
 
 #LOAD DATA
 #crea un dataset senza utilizzare label o creare effettivamente classi
 #va a ridimensionare tutte le immagini del dataset
-data = tf.keras.utils.image_dataset_from_directory('data123', image_size = (400,400))
+data = tf.keras.utils.image_dataset_from_directory('data', image_size = (400,400))
 labels = ['0','1','2','3','4','5','6','7','8','9','A','C','G','I','L']
 labels.sort()
 print(f'Tutte quante le label disponibile nel dataset sono {labels}')
@@ -39,7 +40,7 @@ data = data.map(lambda x,y: (x/255.0,y)) #x rappresenta le immagini, y le labels
 scaled_iterator = data.as_numpy_iterator()
 batch = scaled_iterator.next()
 
-#DIVIDO IL MIO SET
+# #DIVIDO IL MIO SET
 train_size = int(len(data)*.7)
 val_size = int(len(data)*.2)
 test_size = int(len(data)*.1)
@@ -47,7 +48,7 @@ print(f'ho {train_size} batch per il test set')
 print(f'ho {val_size} batch per il validation set')
 print(f'ho {test_size} batch per il test set')
 
-#dico quanti batch sono necessari per il mio training, e dopo quanti batch dovrò utilizzzare gli altri data
+# #dico quanti batch sono necessari per il mio training, e dopo quanti batch dovrò utilizzzare gli altri data
 train = data.take(train_size)
 val = data.skip(train_size).take(val_size) 
 test = data.skip(train_size+val_size).take(test_size)
@@ -70,6 +71,10 @@ print(model.summary())
 
 #TRAIN
 history = model.fit(train, epochs=10, validation_data=val)
+
+#SAVE MODEL
+model.save(os.path.join('model', 'handgesturerecognition.h5'))
+#new_model = load_model(os.path.join('model','handgesturerecognition.h5'))
 
 #EVALUATE PERFORMANCE 
 plt.plot(history.history['accuracy'])
@@ -115,7 +120,7 @@ cap = cv2.VideoCapture(0)
 detector = HandDetector(maxHands=2)
 offset=20
 imgSize = 400
-folder = 'data123/8'
+folder = 'data/8'
 counter = 0
 while True:
     success, img = cap.read()
