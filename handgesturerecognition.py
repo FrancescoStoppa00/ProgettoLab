@@ -72,10 +72,6 @@ print(model.summary())
 #TRAIN
 history = model.fit(train, epochs=10, validation_data=val)
 
-#SAVE MODEL
-model.save(os.path.join('model', 'handgesturerecognition.h5'))
-#new_model = load_model(os.path.join('model','handgesturerecognition.h5'))
-
 #EVALUATE PERFORMANCE 
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
